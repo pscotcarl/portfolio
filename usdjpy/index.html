@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USD/JPY Carry Trade Unwind</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0c0c0c;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1a1a1a;
+            --bg-elevated: #222222;
+            --text-primary: #d0d0d0;
+            --text-secondary: #999999;
+            --text-muted: #555555;
+            --border-color: #333333;
+            --border-heavy: #444444;
+            --accent: #888888;
+            --red: #cd5c5c;
+            --green: #5f9ea0;
+            --yellow: #d4af37;
+            --blue: #4682b4;
+            --orange: #c87941;
+            --purple: #8b7ab8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.3;
+            overflow-x: hidden;
+            text-shadow: 0 0 1px rgba(255,255,255,0.08);
+        }
+
+        /* CRT scanlines */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255,255,255,0.018) 0px,
+                transparent 1px,
+                transparent 2px,
+                rgba(255,255,255,0.018) 3px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── HEADER ── */
+        header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px dashed var(--border-color);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: 0.04em;
+        }
+
+        h1::before { content: '> '; color: var(--accent); }
+
+        .subtitle {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.3rem;
+        }
+
+        .subtitle::before { content: '// '; }
+
+        .rec-badge {
+            background: transparent;
+            border: 1px solid var(--red);
+            color: var(--red);
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+            font-family: 'Share Tech Mono', monospace;
+            animation: borderPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes borderPulse {
+            0%, 100% { border-color: var(--red); box-shadow: 0 0 4px rgba(205,92,92,0.3); }
+            50% { border-color: #a04040; box-shadow: none; }
+        }
+
+        /* ── TRADE SUMMARY STRIP ── */
+        .trade-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .trade-stat {
+            padding: 0.9rem 1.2rem;
+            border-right: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .trade-stat:last-child { border-right: none; }
+
+        .trade-stat-label {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.4rem;
+        }
+
+        .trade-stat-label::before { content: '// '; }
+
+        .trade-stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .trade-stat-value.red { color: var(--red); }
+        .trade-stat-value.green { color: var(--green); }
+        .trade-stat-value.yellow { color: var(--yellow); }
+
+        .trade-stat-sub {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        /* ── THESIS PANEL ── */
+        .thesis-panel {
+            border: 1px dashed var(--border-color);
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .thesis-panel::before {
+            content: '$ cat thesis.txt';
+            position: absolute;
+            top: -10px;
+            left: 8px;
+            background: var(--bg-primary);
+            padding: 0 0.4rem;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .thesis-text {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .thesis-text strong { color: var(--text-primary); }
+
+        /* ── CHART GRID ── */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .chart-grid.single { grid-template-columns: 1fr; }
+
+        .chart-card {
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            background: var(--bg-secondary);
+            position: relative;
+        }
+
+        .chart-card:hover {
+            box-shadow: 0 0 12px rgba(136,136,136,0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.7rem;
+            border-bottom: 1px dashed var(--border-color);
+            gap: 1rem;
+        }
+
+        .chart-title {
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            letter-spacing: 0.03em;
+        }
+
+        .chart-title::before { content: '['; color: var(--accent); }
+        .chart-title::after  { content: ']'; color: var(--accent); }
+
+        .chart-source {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .chart-source::before { content: '// '; }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+        }
+
+        .chart-container.tall { height: 340px; }
+
+        /* ── EVENT LEGEND ── */
+        .event-legend {
+            margin-top: 0.8rem;
+            padding-top: 0.7rem;
+            border-top: 1px dotted var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .event-item {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .event-item span:first-child {
+            color: var(--yellow);
+            flex-shrink: 0;
+        }
+
+        /* ── FACTOR TABLE ── */
+        .factor-panel {
+            border: 1px solid var(--border-color);
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .factor-panel::before {
+            content: '$ cat factor_overview.txt';
+            position: absolute;
+            top: -10px;
+            left: 8px;
+            background: var(--bg-primary);
+            padding: 0 0.4rem;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .factor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .factor-block {
+            border: 1px dashed var(--border-color);
+            padding: 0.8rem;
+        }
+
+        .factor-block-title {
+            font-size: 0.65rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.6rem;
+        }
+
+        .factor-block-title::before { content: '# '; }
+
+        .factor-item {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            padding: 0.3rem 0;
+            border-bottom: 1px dotted var(--border-color);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .factor-item:last-child { border-bottom: none; }
+
+        .factor-item .val { color: var(--text-primary); }
+        .factor-item .val.bearish { color: var(--red); }
+        .factor-item .val.bullish { color: var(--green); }
+        .factor-item .val.neutral { color: var(--yellow); }
+
+        /* ── RISKS/CATALYSTS ── */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .list-panel {
+            border: 1px dashed var(--border-color);
+            padding: 1rem 1.2rem;
+            position: relative;
+        }
+
+        .list-panel::before {
+            position: absolute;
+            top: -10px;
+            left: 8px;
+            background: var(--bg-primary);
+            padding: 0 0.4rem;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .list-panel.catalysts::before { content: '$ cat catalysts.txt'; }
+        .list-panel.risks::before     { content: '$ cat risks.txt'; }
+
+        .list-panel ul { list-style: none; margin-top: 0.5rem; }
+
+        .list-panel li {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            padding: 0.4rem 0;
+            border-bottom: 1px dotted var(--border-color);
+            line-height: 1.5;
+        }
+
+        .list-panel li:last-child { border-bottom: none; }
+        .list-panel li::before { content: '- '; color: var(--accent); }
+
+        /* ── FOOTER ── */
+        footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px dashed var(--border-color);
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        footer::before { content: '// '; }
+
+        /* scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-heavy); }
+
+        @media (max-width: 900px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .two-col    { grid-template-columns: 1fr; }
+            .trade-strip { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- HEADER -->
+    <header>
+        <div class="header-top">
+            <div>
+                <h1>USD/JPY — Carry Trade Unwind</h1>
+                <p class="subtitle">Factor analysis dashboard — BoJ policy normalization vs. USD weakness</p>
+            </div>
+            <div class="rec-badge">SELL / SHORT USD/JPY</div>
+        </div>
+    </header>
+
+    <!-- TRADE SUMMARY STRIP -->
+    <div class="trade-strip">
+        <div class="trade-stat">
+            <div class="trade-stat-label">Current Price</div>
+            <div class="trade-stat-value">150.80</div>
+            <div class="trade-stat-sub">USD/JPY spot</div>
+        </div>
+        <div class="trade-stat">
+            <div class="trade-stat-label">Target Price</div>
+            <div class="trade-stat-value green">128.00</div>
+            <div class="trade-stat-sub">~15% downside</div>
+        </div>
+        <div class="trade-stat">
+            <div class="trade-stat-label">Entry Range</div>
+            <div class="trade-stat-value yellow">140–150</div>
+            <div class="trade-stat-sub">scale in gradually</div>
+        </div>
+        <div class="trade-stat">
+            <div class="trade-stat-label">Stop Loss</div>
+            <div class="trade-stat-value red">155.00</div>
+            <div class="trade-stat-sub">invalidates thesis</div>
+        </div>
+        <div class="trade-stat">
+            <div class="trade-stat-label">Horizon</div>
+            <div class="trade-stat-value">1–3 yr</div>
+            <div class="trade-stat-sub">macro-driven</div>
+        </div>
+        <div class="trade-stat">
+            <div class="trade-stat-label">Position Size</div>
+            <div class="trade-stat-value">≤ 1%</div>
+            <div class="trade-stat-sub">of total portfolio</div>
+        </div>
+    </div>
+
+    <!-- THESIS -->
+    <div class="thesis-panel">
+        <p class="thesis-text">
+            For decades, <strong>borrowed Yen</strong> funded carry trades globally — courtesy of near-zero BoJ rates vs. higher yields elsewhere.
+            That dynamic is reversing. Japan now faces <strong>decades-high sustained inflation</strong>, forcing the BoJ to raise rates (0.5% as of Sept 2025)
+            and begin unwinding its ¥75tn ETF/REIT book. Simultaneously, the <strong>USD faces structural headwinds</strong>: eroding reserve currency status,
+            Fed rate cuts underway, and a weaker labor market. The interest rate differential — the engine of the carry trade — is <strong>compressing from both sides</strong>.
+            Historical precedent (2006–2011) shows USD/JPY fell 35%+ following a similar BoJ hiking cycle. The unwind is not a question of if, but when.
+        </p>
+    </div>
+
+    <!-- CHART ROW 1: Main price chart (full width) -->
+    <div class="chart-grid single">
+        <div class="chart-card">
+            <div class="chart-header">
+                <span class="chart-title">USD/JPY vs. BoJ Interest Rate — 2005 to Present</span>
+                <span class="chart-source">FRED (EXJPUS), BoJ stat-search</span>
+            </div>
+            <div class="chart-container tall">
+                <canvas id="priceChart"></canvas>
+            </div>
+            <div class="event-legend">
+                <div class="event-item"><span>[1]</span><span>Jul 2006 — BoJ hikes from near-zero to 0.5%. USD/JPY falls 35%+ over next 4 years as US cuts rates into 2008 recession.</span></div>
+                <div class="event-item"><span>[2]</span><span>Mar 2024 — BoJ raises rates to highest since 2008. 2 board members signal desire for further 0.25% hike in Sept 2025.</span></div>
+                <div class="event-item"><span>[3]</span><span>Sep 2025 — BoJ unanimously votes to begin unwinding ¥75tn ETF/REIT book. QT begins.</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHART ROW 2: Two charts side by side -->
+    <div class="chart-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <span class="chart-title">Japan CPI Inflation (YoY %) vs. 10yr JGB Yield</span>
+                <span class="chart-source">Statistics Bureau of Japan, FRED</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="inflationChart"></canvas>
+            </div>
+            <div class="event-legend">
+                <div class="event-item"><span>[1]</span><span>2021 — COVID supply shocks trigger sustained inflation above BoJ 2% target for the first time in decades.</span></div>
+                <div class="event-item"><span>[2]</span><span>2024–25 — 10yr JGB yield hits 15-year highs as markets price in continued BoJ normalization.</span></div>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <span class="chart-title">BoJ ETF Holdings (Book Value, ¥tn) vs. CPI</span>
+                <span class="chart-source">BoJ, Statistics Bureau of Japan</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="etfChart"></canvas>
+            </div>
+            <div class="event-legend">
+                <div class="event-item"><span>[1]</span><span>2013–2021 — BoJ accumulates ¥35tn+ in ETFs under Abenomics QE program.</span></div>
+                <div class="event-item"><span>[2]</span><span>Sep 2025 — Board unanimously votes to begin selling ETF book. First QT since program inception.</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHART ROW 3: Interest rate differential -->
+    <div class="chart-grid single">
+        <div class="chart-card">
+            <div class="chart-header">
+                <span class="chart-title">Interest Rate Differential — BoJ vs. US Fed Funds Rate</span>
+                <span class="chart-source">FRED (FEDFUNDS), BoJ</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="rateChart"></canvas>
+            </div>
+            <div class="event-legend">
+                <div class="event-item"><span>*</span><span>The spread between US and Japanese rates is the mechanical engine of the carry trade. Compression = forced unwind of Yen-funded positions globally.</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FACTOR OVERVIEW -->
+    <div class="factor-panel">
+        <div class="factor-grid">
+            <div class="factor-block">
+                <div class="factor-block-title">BoJ Policy (JPY Bullish)</div>
+                <div class="factor-item"><span>Overnight call rate</span><span class="val bullish">0.50%</span></div>
+                <div class="factor-item"><span>Board dissent (hike)</span><span class="val bullish">2 of 9</span></div>
+                <div class="factor-item"><span>ETF unwind</span><span class="val bullish">Underway</span></div>
+                <div class="factor-item"><span>CPI YoY</span><span class="val bullish">~2.5%</span></div>
+                <div class="factor-item"><span>Next mtg catalysts</span><span class="val neutral">Oct + Dec</span></div>
+            </div>
+            <div class="factor-block">
+                <div class="factor-block-title">Fed Policy (JPY Bullish)</div>
+                <div class="factor-item"><span>Fed funds rate</span><span class="val neutral">4.00–4.25%</span></div>
+                <div class="factor-item"><span>Cuts priced in</span><span class="val bullish">2 more in 2025</span></div>
+                <div class="factor-item"><span>Labor market</span><span class="val bullish">Softening</span></div>
+                <div class="factor-item"><span>Tariff inflation</span><span class="val neutral">Temporary</span></div>
+                <div class="factor-item"><span>USD reserve status</span><span class="val bullish">Weakening</span></div>
+            </div>
+            <div class="factor-block">
+                <div class="factor-block-title">Carry Trade Dynamics</div>
+                <div class="factor-item"><span>BIS est. Yen carry book</span><span class="val">$100s bn</span></div>
+                <div class="factor-item"><span>Rate differential</span><span class="val bearish">Compressing</span></div>
+                <div class="factor-item"><span>Unwind risk</span><span class="val bearish">High</span></div>
+                <div class="factor-item"><span>Precedent (2006–11)</span><span class="val bullish">−35% USDJPY</span></div>
+                <div class="factor-item"><span>Historical analog</span><span class="val bullish">Strong</span></div>
+            </div>
+            <div class="factor-block">
+                <div class="factor-block-title">Factors To Add (Future)</div>
+                <div class="factor-item"><span>JPY positioning (CoT)</span><span class="val neutral">Pending</span></div>
+                <div class="factor-item"><span>USD index (DXY)</span><span class="val neutral">Pending</span></div>
+                <div class="factor-item"><span>US–JP yield spread</span><span class="val neutral">Pending</span></div>
+                <div class="factor-item"><span>Japan current account</span><span class="val neutral">Pending</span></div>
+                <div class="factor-item"><span>FX volatility (VIX/JPY)</span><span class="val neutral">Pending</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CATALYSTS + RISKS -->
+    <div class="two-col">
+        <div class="list-panel catalysts">
+            <ul>
+                <li>BoJ Oct + Dec meetings — 2 dissenting members already eyeing 0.75% rate. Any hike = immediate JPY strengthening.</li>
+                <li>Fed Oct + Dec meetings — further cuts narrow the differential mechanically, forcing carry unwind.</li>
+                <li>BoJ ETF sales begin hitting market — reduces domestic liquidity, supports JPY repatriation.</li>
+                <li>USD reserve currency erosion — EUR, GBP, CHF all strengthened vs. USD in 2025 even before Fed cuts.</li>
+                <li>US manufacturing devaluation agenda — any explicit USD weakness policy accelerates the move.</li>
+            </ul>
+        </div>
+        <div class="list-panel risks">
+            <ul>
+                <li>Japanese economic slowdown — BoJ could pause or reverse hikes if growth disappoints, stalling JPY appreciation.</li>
+                <li>Stickier US inflation — delays Fed cuts, keeps differential wide, supports USD/JPY.</li>
+                <li>Risk-off shock — paradoxically, JPY is a safe haven; a sharp global selloff could accelerate the unwind faster than expected (stop-loss risk).</li>
+                <li>BoJ communication error — any dovish signal at Oct/Dec meetings delays catalyst timeline.</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        <span>Sources: FRED, BoJ Statistical Search, Statistics Bureau of Japan, BIS Bulletin No. 90, Bloomberg</span>
+        <span>Investment horizon: 1–3 years | Updated: Oct 2025 | WUTIS – Global Markets</span>
+    </footer>
+
+</div>
+
+<script>
+    // ── SHARED CHART CONFIG ──
+    Chart.defaults.color = '#777777';
+    Chart.defaults.borderColor = '#2a2a2a';
+    Chart.defaults.font.family = "'Share Tech Mono', 'Courier New', monospace";
+
+    // ── REAL HISTORICAL DATA ──
+    // USD/JPY annual average (FRED EXJPUS), sampled yearly
+    const years = ['2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'];
+
+    const usdjpy = [110.2, 116.3, 117.8, 103.4, 93.6, 87.8, 79.8, 79.8, 97.6, 105.9, 121.0, 108.8, 112.1, 110.4, 109.0, 106.8, 109.8, 131.5, 140.5, 151.9, 150.8];
+
+    const bojRate = [0.001, 0.25, 0.50, 0.30, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.05, -0.04, -0.05, -0.05, -0.07, -0.04, -0.04, -0.02, -0.05, 0.10, 0.50];
+
+    // Japan CPI YoY %
+    const japanCPI = [-0.3, 0.2, 0.1, 1.4, -1.4, -0.7, -0.3, 0.0, 0.4, 2.7, 0.8, -0.1, 0.5, 1.0, 0.5, 0.0, -0.2, 2.5, 3.3, 2.7, 2.4];
+
+    // Japan 10yr JGB yield %
+    const jgb10yr = [1.39, 1.73, 1.67, 1.50, 1.34, 1.17, 1.12, 0.84, 0.72, 0.55, 0.31, 0.07, 0.06, 0.10, -0.01, 0.02, 0.07, 0.22, 0.70, 1.05, 1.50];
+
+    // BoJ ETF holdings book value (¥tn, approximate)
+    const bojETF = [0, 0, 0, 0, 0, 0.4, 1.5, 2.8, 4.5, 6.5, 9.0, 12.5, 16.8, 21.3, 26.0, 30.5, 35.2, 36.1, 36.8, 37.0, 35.5];
+
+    // US Fed funds rate (upper bound)
+    const fedRate = [3.00, 5.25, 5.25, 2.00, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.50, 0.75, 1.50, 2.50, 1.75, 0.25, 0.25, 4.50, 5.50, 5.25, 4.25];
+
+    // Rate differential (Fed - BoJ)
+    const rateDiff = fedRate.map((f, i) => parseFloat((f - bojRate[i]).toFixed(2)));
+
+    const tooltipDefaults = {
+        backgroundColor: '#1a1a1a',
+        titleColor: '#d0d0d0',
+        bodyColor: '#999999',
+        borderColor: '#333333',
+        borderWidth: 1,
+        padding: 10,
+        titleFont: { family: "'Share Tech Mono', monospace", size: 11 },
+        bodyFont:  { family: "'Share Tech Mono', monospace", size: 11 }
+    };
+
+    const gridColor = '#1e1e1e';
+
+    // ── CHART 1: USD/JPY + BoJ Rate ──
+    const priceCtx = document.getElementById('priceChart').getContext('2d');
+    new Chart(priceCtx, {
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    type: 'line',
+                    label: 'USD/JPY',
+                    data: usdjpy,
+                    borderColor: '#d4af37',
+                    backgroundColor: 'rgba(212,175,55,0.06)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    yAxisID: 'yRight',
+                    fill: false
+                },
+                {
+                    type: 'line',
+                    label: 'BoJ Rate (%)',
+                    data: bojRate,
+                    borderColor: '#4682b4',
+                    backgroundColor: 'rgba(70,130,180,0.06)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    yAxisID: 'yLeft',
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { padding: 12, font: { size: 11 }, usePointStyle: true } },
+                tooltip: { ...tooltipDefaults, callbacks: {
+                    label: ctx => ctx.datasetIndex === 0
+                        ? `USD/JPY: ${ctx.parsed.y.toFixed(1)}`
+                        : `BoJ Rate: ${ctx.parsed.y.toFixed(2)}%`
+                }},
+                annotation: {
+                    annotations: {
+                        ev1: { type: 'line', xMin: '2006', xMax: '2006', scaleID: 'x', borderColor: 'rgba(136,136,136,0.5)', borderWidth: 1, borderDash: [4,4], label: { content: '[1]', display: true, position: 'start', color: '#d4af37', font: { size: 10 }, backgroundColor: 'transparent' } },
+                        ev2: { type: 'line', xMin: '2024', xMax: '2024', scaleID: 'x', borderColor: 'rgba(136,136,136,0.5)', borderWidth: 1, borderDash: [4,4], label: { content: '[2]', display: true, position: 'start', color: '#d4af37', font: { size: 10 }, backgroundColor: 'transparent' } },
+                        ev3: { type: 'line', xMin: '2025', xMax: '2025', scaleID: 'x', borderColor: 'rgba(136,136,136,0.5)', borderWidth: 1, borderDash: [4,4], label: { content: '[3]', display: true, position: 'start', color: '#d4af37', font: { size: 10 }, backgroundColor: 'transparent' } }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: gridColor }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+                yLeft: {
+                    position: 'left',
+                    grid: { color: gridColor },
+                    ticks: { callback: v => v.toFixed(2) + '%', font: { size: 10 } },
+                    title: { display: true, text: 'BoJ Rate (%)', color: '#4682b4', font: { size: 10 } }
+                },
+                yRight: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: { callback: v => v.toFixed(0), font: { size: 10 } },
+                    title: { display: true, text: 'USD/JPY', color: '#d4af37', font: { size: 10 } }
+                }
+            }
+        }
+    });
+
+    // ── CHART 2: CPI + JGB Yield ──
+    const inflCtx = document.getElementById('inflationChart').getContext('2d');
+    new Chart(inflCtx, {
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    type: 'line',
+                    label: 'CPI YoY (%)',
+                    data: japanCPI,
+                    borderColor: '#4682b4',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    yAxisID: 'y',
+                    fill: false
+                },
+                {
+                    type: 'line',
+                    label: '10yr JGB Yield (%)',
+                    data: jgb10yr,
+                    borderColor: '#d4af37',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    yAxisID: 'y',
+                    fill: false
+                },
+                {
+                    type: 'line',
+                    label: '2% BoJ Target',
+                    data: years.map(() => 2.0),
+                    borderColor: 'rgba(205,92,92,0.4)',
+                    borderWidth: 1,
+                    borderDash: [4,4],
+                    pointRadius: 0,
+                    yAxisID: 'y',
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { padding: 10, font: { size: 10 }, usePointStyle: true } },
+                tooltip: { ...tooltipDefaults, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%` } },
+                annotation: {
+                    annotations: {
+                        ev1: { type: 'line', xMin: '2021', xMax: '2021', scaleID: 'x', borderColor: 'rgba(136,136,136,0.4)', borderWidth: 1, borderDash: [4,4], label: { content: '[1]', display: true, position: 'start', color: '#d4af37', font: { size: 10 }, backgroundColor: 'transparent' } },
+                        ev2: { type: 'line', xMin: '2024', xMax: '2024', scaleID: 'x', borderColor: 'rgba(136,136,136,0.4)', borderWidth: 1, borderDash: [4,4], label: { content: '[2]', display: true, position: 'start', color: '#d4af37', font: { size: 10 }, backgroundColor: 'transparent' } }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: gridColor }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+                y: { grid: { color: gridColor }, ticks: { callback: v => v.toFixed(1) + '%', font: { size: 10 } } }
+            }
+        }
+    });
+
+    // ── CHART 3: ETF Holdings + CPI ──
+    const etfCtx = document.getElementById('etfChart').getContext('2d');
+    new Chart(etfCtx, {
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'BoJ ETF Holdings (¥tn)',
+                    data: bojETF,
+                    backgroundColor: 'rgba(139,122,184,0.25)',
+                    borderColor: '#8b7ab8',
+                    borderWidth: 1,
+                    yAxisID: 'yRight'
+                },
+                {
+                    type: 'line',
+                    label: 'CPI YoY (%)',
+                    data: japanCPI,
+                    borderColor: '#4682b4',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    yAxisID: 'yLeft',
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { padding: 10, font: { size: 10 }, usePointStyle: true } },
+                tooltip: { ...tooltipDefaults },
+                annotation: {
+                    annotations: {
+                        ev1: { type: 'line', xMin: '2013', xMax: '2013', scaleID: 'x', borderColor: 'rgba(136,136,136,0.4)', borderWidth: 1, borderDash: [4,4], label: { content: '[1]', display: true, position: 'start', color: '#d4af37', font: { size: 10 }, backgroundColor: 'transparent' } },
+                        ev2: { type: 'line', xMin: '2025', xMax: '2025', scaleID: 'x', borderColor: 'rgba(136,136,136,0.4)', borderWidth: 1, borderDash: [4,4], label: { content: '[2]', display: true, position: 'start', color: '#d4af37', font: { size: 10 }, backgroundColor: 'transparent' } }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: gridColor }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+                yLeft: {
+                    position: 'left',
+                    grid: { color: gridColor },
+                    ticks: { callback: v => v.toFixed(1) + '%', font: { size: 10 } },
+                    title: { display: true, text: 'CPI YoY (%)', color: '#4682b4', font: { size: 10 } }
+                },
+                yRight: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: { callback: v => '¥' + v + 'tn', font: { size: 10 } },
+                    title: { display: true, text: 'ETF Holdings (¥tn)', color: '#8b7ab8', font: { size: 10 } }
+                }
+            }
+        }
+    });
+
+    // ── CHART 4: Rate Differential ──
+    const rateCtx = document.getElementById('rateChart').getContext('2d');
+    new Chart(rateCtx, {
+        data: {
+            labels: years,
+            datasets: [
+                {
+                    type: 'line',
+                    label: 'US Fed Funds (%)',
+                    data: fedRate,
+                    borderColor: '#5f9ea0',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    yAxisID: 'y',
+                    fill: false
+                },
+                {
+                    type: 'line',
+                    label: 'BoJ Rate (%)',
+                    data: bojRate,
+                    borderColor: '#4682b4',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    yAxisID: 'y',
+                    fill: false
+                },
+                {
+                    type: 'bar',
+                    label: 'Differential (Fed − BoJ)',
+                    data: rateDiff,
+                    backgroundColor: rateDiff.map(v => v > 4 ? 'rgba(205,92,92,0.3)' : 'rgba(95,158,160,0.2)'),
+                    borderColor: rateDiff.map(v => v > 4 ? 'rgba(205,92,92,0.6)' : 'rgba(95,158,160,0.4)'),
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { padding: 10, font: { size: 10 }, usePointStyle: true } },
+                tooltip: { ...tooltipDefaults, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%` } }
+            },
+            scales: {
+                x: { grid: { color: gridColor }, ticks: { font: { size: 10 }, maxRotation: 45 } },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: { callback: v => v.toFixed(1) + '%', font: { size: 10 } },
+                    title: { display: true, text: 'Rate (%)', color: '#999', font: { size: 10 } }
+                }
+            }
+        }
+    });
+</script>
+</body>
+</html>
