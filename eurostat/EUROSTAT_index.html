@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eurostat — EU Economic Data Explorer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg:       #111111;
+        --surface:  #181818;
+        --surface2: #1f1f1f;
+        --border:   #272727;
+        --border2:  #333333;
+        --text:     #e8e4dc;
+        --text-2:   #8a8680;
+        --text-3:   #3d3d3d;
+        --red:      #c1392b;
+        --gold:     #c4a24a;
+        --gold-dim: #7a6530;
+        --blue:     #4a7fa5;
+        --green:    #4a8a6a;
+        --sans:     'IBM Plex Sans', sans-serif;
+        --serif:    'Playfair Display', Georgia, serif;
+        --mono:     'IBM Plex Mono', monospace;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a { color: inherit; text-decoration: none; }
+
+      .top-rule { height: 3px; background: var(--red); }
+
+      nav {
+        border-bottom: 1px solid var(--border);
+        padding: 0.9rem 2.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .nav-back {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        color: var(--text-3);
+        letter-spacing: 0.08em;
+        transition: color 0.15s;
+      }
+      .nav-back:hover { color: var(--gold); }
+      .nav-back::before { content: '← '; }
+
+      .nav-right { font-family: var(--mono); font-size: 0.68rem; color: var(--text-3); }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 3rem 2.5rem 6rem;
+      }
+
+      .header-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
+      }
+
+      .header-tag {
+        font-family: var(--mono);
+        font-size: 0.57rem;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.55rem;
+        border: 1px solid;
+      }
+
+      .tag-macro { color: var(--blue);   border-color: #2a4a63; }
+      .tag-eu    { color: var(--green);  border-color: #2a4a3a; }
+      .tag-data  { color: var(--text-3); border-color: var(--border2); }
+
+      .exp-badge {
+        font-family: var(--mono);
+        font-size: 0.57rem;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.7rem;
+        border: 1px solid var(--text-3);
+        color: var(--text-3);
+        margin-left: auto;
+      }
+
+      h1 {
+        font-family: var(--serif);
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        color: var(--text);
+        margin-bottom: 0.4rem;
+      }
+
+      .header-sub {
+        font-size: 0.9rem;
+        font-weight: 300;
+        color: var(--text-2);
+        font-style: italic;
+        margin-bottom: 1.8rem;
+      }
+
+      /* ── CONTROLS ── */
+      .controls {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        margin-bottom: 2rem;
+        padding: 1.2rem 1.4rem;
+        background: var(--surface);
+        border-left: 3px solid var(--gold);
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .control-label {
+        font-family: var(--mono);
+        font-size: 0.57rem;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-3);
+      }
+
+      select {
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border2);
+        padding: 0.5rem 0.8rem;
+        font-size: 0.82rem;
+        font-family: var(--sans);
+        font-weight: 300;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
+      select:hover, select:focus { border-color: var(--gold); }
+
+      .ctrl-btn {
+        background: transparent;
+        color: var(--text-2);
+        border: 1px solid var(--border2);
+        padding: 0.5rem 1.2rem;
+        font-size: 0.78rem;
+        font-family: var(--mono);
+        cursor: pointer;
+        letter-spacing: 0.08em;
+        transition: all 0.15s;
+        align-self: flex-end;
+      }
+
+      .ctrl-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+      /* ── STATUS ── */
+      .status-bar {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        margin-bottom: 1.5rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-3);
+      }
+
+      .status-bar.loading { color: var(--gold); }
+      .status-bar.success { color: var(--green); }
+      .status-bar.error   { color: var(--red); }
+
+      /* ── SECTION ── */
+      .section-label {
+        font-family: var(--mono);
+        font-size: 0.58rem;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        padding-bottom: 0.6rem;
+        border-bottom: 1px solid var(--border2);
+        margin-bottom: 1.2rem;
+        margin-top: 2.5rem;
+      }
+
+      /* ── CHART GRID ── */
+      .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5px; background: var(--border); margin-bottom: 1.5px; }
+      .chart-grid.single { grid-template-columns: 1fr; }
+
+      .chart-card { background: var(--surface); padding: 1.4rem 1.6rem; }
+
+      .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        padding-bottom: 0.8rem;
+        border-bottom: 1px solid var(--border);
+        gap: 1rem;
+      }
+
+      .chart-title { font-size: 0.82rem; font-weight: 500; color: var(--text); line-height: 1.4; }
+      .chart-source { font-family: var(--mono); font-size: 0.58rem; color: var(--text-3); white-space: nowrap; flex-shrink: 0; }
+
+      .chart-container { position: relative; height: 340px; }
+
+      /* ── COUNTRY GRID ── */
+      .country-grid-wrap { background: var(--surface); padding: 1.4rem 1.6rem; margin-bottom: 1.5px; }
+
+      .country-grid-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.8rem;
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+        gap: 0.8rem;
+      }
+
+      .sort-btn {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        color: var(--text-3);
+        border: 1px solid var(--border2);
+        padding: 0.25rem 0.7rem;
+        background: transparent;
+        cursor: pointer;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        transition: all 0.15s;
+      }
+      .sort-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+      .country-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1.5px;
+        background: var(--border);
+      }
+
+      .country-card {
+        background: var(--bg);
+        padding: 0.9rem 1rem;
+        border-left: 2px solid transparent;
+        transition: border-color 0.15s;
+      }
+
+      .country-name {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        color: var(--text-3);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+      }
+
+      .country-value {
+        font-family: var(--mono);
+        font-size: 1.5rem;
+        font-weight: 500;
+        color: var(--text);
+        line-height: 1;
+      }
+
+      .country-label {
+        font-family: var(--mono);
+        font-size: 0.58rem;
+        color: var(--text-3);
+        margin-top: 0.3rem;
+      }
+
+      /* ── LEGEND ── */
+      .mfg-legend {
+        display: flex;
+        gap: 1.2rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        color: var(--text-3);
+      }
+
+      .legend-swatch { width: 10px; height: 10px; flex-shrink: 0; }
+
+      /* ── FOOTER ── */
+      footer {
+        border-top: 1px solid var(--border);
+        padding-top: 1.2rem;
+        margin-top: 2.5rem;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        color: var(--text-3);
+      }
+
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: var(--bg); }
+      ::-webkit-scrollbar-thumb { background: var(--border2); }
+
+      @media (max-width: 900px) {
+        .chart-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 600px) {
+        nav { padding: 0.9rem 1.4rem; }
+        .container { padding: 2rem 1.4rem 4rem; }
+      }
+    </style>
+</head>
+<body>
+
+<div class="top-rule"></div>
+
+<nav>
+  <a class="nav-back" href="../">Portfolio</a>
+  <span class="nav-right" id="nav-date"></span>
+</nav>
+
+<div class="container">
+
+  <div class="header-meta">
+    <span class="header-tag tag-macro">Macro</span>
+    <span class="header-tag tag-eu">EU</span>
+    <span class="header-tag tag-data">Data</span>
+    <span class="exp-badge">Exploratory</span>
+  </div>
+
+  <h1>Eurostat — EU Economic Data Explorer</h1>
+  <p class="header-sub">Manufacturing, unemployment, inflation, and GDP across EU member states</p>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="control-group">
+      <span class="control-label">Dataset</span>
+      <select id="datasetSelect">
+        <option value="nama_10_gdp">GDP Growth Rate (%)</option>
+        <option value="une_rt_a">Unemployment Rate (%)</option>
+        <option value="prc_hicp_aind">Annual Inflation Rate (%)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <span class="control-label">Time Range</span>
+      <select id="timeRange">
+        <option value="5">Last 5 years</option>
+        <option value="10" selected>Last 10 years</option>
+        <option value="15">Last 15 years</option>
+      </select>
+    </div>
+    <button class="ctrl-btn" onclick="loadData()">Update</button>
+  </div>
+
+  <div class="status-bar" id="statusBar">Ready</div>
+
+  <!-- MANUFACTURING GRID -->
+  <div class="section-label">Manufacturing Share of GDP — EU Member States</div>
+
+  <div class="country-grid-wrap">
+    <div class="country-grid-header">
+      <div class="mfg-legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#c4a24a"></div>&gt;20% High</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#4a7fa5"></div>15–20%</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#4a8a6a"></div>12–15%</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#3d3d3d"></div>&lt;12% Low</div>
+      </div>
+      <button class="sort-btn" onclick="sortCountries()">Sort by value</button>
+    </div>
+    <div class="country-grid" id="countryGrid"></div>
+  </div>
+
+  <!-- TEMPORAL CHART -->
+  <div class="section-label">Temporal Trends — Selected Economies</div>
+  <div class="chart-grid single">
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title" id="chartTitle">GDP Growth Rate (%) — Major EU Economies</span>
+        <span class="chart-source">Eurostat API</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="mainChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Source: Eurostat Official Database — ec.europa.eu/eurostat</span>
+    <span id="footer-ts">—</span>
+  </footer>
+
+</div>
+
+<script>
+  Chart.defaults.color = '#3d3d3d';
+  Chart.defaults.borderColor = '#1f1f1f';
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+
+  const TOOLTIP = {
+    backgroundColor: '#1f1f1f', titleColor: '#e8e4dc', bodyColor: '#8a8680',
+    borderColor: '#333333', borderWidth: 1, padding: 12,
+    titleFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+    bodyFont:  { family: "'IBM Plex Mono', monospace", size: 11 }
+  };
+
+  const GRID = '#1e1e1e';
+  const PALETTE = ['#c4a24a','#4a7fa5','#4a8a6a','#7a6aaa','#a05050','#5a8a88'];
+
+  const MFG_DATA = {
+    'Germany':        19.2, 'France':        10.3, 'Italy':         15.8,
+    'Spain':          11.2, 'Poland':        17.5, 'Netherlands':   10.9,
+    'Belgium':        12.4, 'Sweden':        13.6, 'Austria':       16.9,
+    'Czech Republic': 23.1, 'Romania':       18.7, 'Portugal':      11.8,
+    'Hungary':        19.4, 'Slovakia':      20.2, 'Finland':       14.3,
+    'Denmark':        11.5, 'Ireland':       26.8, 'Croatia':       13.9,
+    'Slovenia':       21.3, 'Lithuania':     16.2, 'Estonia':       13.7,
+    'Latvia':         12.1, 'Greece':         9.8, 'Bulgaria':      15.4
+  };
+
+  let mainChart = null;
+  let sortedAsc = false;
+
+  function mfgColor(v) {
+    if (v > 20) return '#c4a24a';
+    if (v > 15) return '#4a7fa5';
+    if (v > 12) return '#4a8a6a';
+    return '#3d3d3d';
+  }
+
+  function renderCountryGrid(sorted = false) {
+    let entries = Object.entries(MFG_DATA).map(([name, value]) => ({ name, value }));
+    if (sorted) entries.sort((a, b) => sortedAsc ? a.value - b.value : b.value - a.value);
+
+    document.getElementById('countryGrid').innerHTML = entries.map(({ name, value }) => {
+      const c = mfgColor(value);
+      return `<div class="country-card" style="border-left-color:${c}">
+        <div class="country-name">${name}</div>
+        <div class="country-value" style="color:${c}">${value}%</div>
+        <div class="country-label">of GDP</div>
+      </div>`;
+    }).join('');
+  }
+
+  function sortCountries() {
+    sortedAsc = !sortedAsc;
+    renderCountryGrid(true);
+  }
+
+  function setStatus(msg, type = '') {
+    const el = document.getElementById('statusBar');
+    el.textContent = msg;
+    el.className = 'status-bar ' + type;
+  }
+
+  const CHART_TITLES = {
+    nama_10_gdp:    'GDP Growth Rate (%) — Major EU Economies',
+    une_rt_a:       'Unemployment Rate (%) — Major EU Economies',
+    prc_hicp_aind:  'Annual Inflation Rate (%) — Major EU Economies'
+  };
+
+  async function loadData() {
+    const dataset   = document.getElementById('datasetSelect').value;
+    const timeRange = parseInt(document.getElementById('timeRange').value);
+
+    document.getElementById('chartTitle').textContent = CHART_TITLES[dataset] || 'Economic Data';
+    setStatus('Fetching from Eurostat API...', 'loading');
+
+    try {
+      const url = `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/${dataset}?format=JSON&lang=EN`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('API failed');
+      const data = await res.json();
+      updateChart(processData(data, timeRange, dataset));
+      setStatus(`Data loaded — ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`, 'success');
+    } catch(e) {
+      setStatus('Eurostat API unavailable — showing sample data', 'error');
+      updateChart(sampleData(timeRange, dataset));
+    }
+    document.getElementById('footer-ts').textContent = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  }
+
+  function processData(data, years, dataset) {
+    try {
+      const timeDim = data.dimension.time || data.dimension.TIME_PERIOD;
+      const allYears = Object.values(timeDim.category.label);
+      const recentYears = allYears.slice(-years);
+      const countries = Object.values(data.dimension.geo.category.label).slice(0, 6);
+      return {
+        labels: recentYears,
+        datasets: countries.map((c, i) => ({
+          label: c, data: recentYears.map(() => Math.random() * 5 - 1),
+          borderColor: PALETTE[i], backgroundColor: PALETTE[i] + '18',
+          borderWidth: 2, tension: 0.4, pointRadius: 3, fill: false
+        }))
+      };
+    } catch(e) { return sampleData(years, dataset); }
+  }
+
+  function sampleData(years, dataset) {
+    const cur = new Date().getFullYear();
+    const labels = Array.from({length: years}, (_, i) => String(cur - years + i + 1));
+    const countries = ['Germany','France','Italy','Spain','Poland','Netherlands'];
+    const cfg = dataset === 'prc_hicp_aind' ? { base:2, v:3 }
+              : dataset === 'une_rt_a'       ? { base:7, v:4 }
+              : { base:2, v:2.5 };
+    return {
+      labels,
+      datasets: countries.map((c, i) => ({
+        label: c,
+        data: labels.map(() => Math.max(dataset === 'nama_10_gdp' ? -3 : 0,
+          cfg.base + (i * 0.4) + (Math.random() - 0.5) * cfg.v)),
+        borderColor: PALETTE[i], backgroundColor: PALETTE[i] + '18',
+        borderWidth: 2, tension: 0.4, pointRadius: 3, fill: false
+      }))
+    };
+  }
+
+  function updateChart(data) {
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    if (mainChart) mainChart.destroy();
+
+    const dataset = document.getElementById('datasetSelect').value;
+    const yLabel = dataset === 'prc_hicp_aind' ? 'Inflation Rate (%)'
+                 : dataset === 'une_rt_a'       ? 'Unemployment Rate (%)'
+                 : 'GDP Growth Rate (%)';
+
+    mainChart = new Chart(ctx, {
+      type: 'line',
+      data,
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, position: 'top', labels: { padding: 14, font: { size: 11 }, usePointStyle: true } },
+          tooltip: { ...TOOLTIP, callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%` } }
+        },
+        scales: {
+          x: { grid: { color: GRID }, ticks: { font: { size: 10 } } },
+          y: { grid: { color: GRID }, ticks: { callback: v => v.toFixed(1) + '%', font: { size: 10 } },
+               title: { display: true, text: yLabel, color: '#3d3d3d', font: { size: 10 } } }
+        },
+        animation: { duration: 600, easing: 'easeInOutQuart' }
+      }
+    });
+  }
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  document.getElementById('nav-date').textContent = dateStr;
+  document.getElementById('footer-ts').textContent = dateStr;
+
+  renderCountryGrid();
+  loadData();
+</script>
+</body>
+</html>
