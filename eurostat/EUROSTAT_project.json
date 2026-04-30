@@ -1,0 +1,10 @@
+{
+  "title": "Eurostat — EU Economic Data Explorer",
+  "subtitle": "Manufacturing, unemployment, inflation, and GDP across EU member states",
+  "description": "An interactive data explorer pulling from the Eurostat API. Visualizes manufacturing share of GDP by country alongside temporal trends in unemployment, inflation, and GDP growth across major EU economies. Built as a platform for further EU macro analysis.",
+  "tags": ["Macro", "EU", "Data"],
+  "recommendation": "EXPLORATORY",
+  "rec_label": "Exploratory",
+  "updated": "Apr 2026",
+  "order": 2
+}
