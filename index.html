@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pscotcarl — Research Portfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #111111;
+    --surface:   #181818;
+    --surface2:  #1f1f1f;
+    --border:    #272727;
+    --border2:   #333333;
+    --text:      #e8e4dc;
+    --text-2:    #8a8680;
+    --text-3:    #3d3d3d;
+    --red:       #c1392b;
+    --gold:      #c4a24a;
+    --gold-dim:  #7a6530;
+    --blue:      #4a7fa5;
+    --green:     #4a8a6a;
+    --sans:      'IBM Plex Sans', sans-serif;
+    --serif:     'Playfair Display', Georgia, serif;
+    --mono:      'IBM Plex Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* ── TOP RULE ── */
+  .top-rule {
+    height: 3px;
+    background: var(--red);
+    width: 100%;
+  }
+
+  /* ── NAV ── */
+  nav {
+    border-bottom: 1px solid var(--border);
+    padding: 0.9rem 2.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .nav-brand {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+
+  .nav-date {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--text-3);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── PAGE ── */
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 4rem 2.5rem 7rem;
+  }
+
+  /* ── HEADER ── */
+  .header-rule {
+    width: 48px;
+    height: 2px;
+    background: var(--gold);
+    margin-bottom: 1.6rem;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.6rem, 6vw, 4rem);
+    font-weight: 900;
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 0.35rem;
+  }
+
+  .name-italic {
+    font-style: italic;
+    color: var(--text-2);
+    font-weight: 700;
+  }
+
+  .header-sub {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 2rem;
+  }
+
+  .bio {
+    font-size: 1rem;
+    font-weight: 300;
+    color: var(--text-2);
+    line-height: 1.85;
+    max-width: 540px;
+    border-left: 2px solid var(--border2);
+    padding-left: 1.2rem;
+    margin-bottom: 4rem;
+  }
+
+  .bio strong { color: var(--text); font-weight: 500; }
+
+  /* ── SECTION ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    margin-bottom: 0.1rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--border2);
+  }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .section-count {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--text-3);
+    margin-left: auto;
+  }
+
+  /* ── CARDS ── */
+  .projects {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 5rem;
+  }
+
+  .project-card {
+    padding: 2rem 0;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2rem;
+    align-items: start;
+    transition: background 0.1s;
+    cursor: pointer;
+    position: relative;
+  }
+
+  a.project-card::before {
+    content: '';
+    position: absolute;
+    left: -2.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--red);
+    transform: scaleY(0);
+    transition: transform 0.2s ease;
+    transform-origin: top;
+  }
+
+  a.project-card:hover::before { transform: scaleY(1); }
+
+  .card-left { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  .card-tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.57rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    border: 1px solid var(--border2);
+    padding: 0.18rem 0.5rem;
+  }
+
+  .tag-fx      { color: var(--gold);  border-color: var(--gold-dim); }
+  .tag-macro   { color: var(--blue);  border-color: #2a4a63; }
+  .tag-rates   { color: #7a6aaa;      border-color: #3a3258; }
+  .tag-eu      { color: var(--green); border-color: #2a4a3a; }
+  .tag-data    { color: var(--text-3);border-color: var(--border2); }
+  .tag-equity  { color: #a05050;      border-color: #5a2a2a; }
+
+  .card-title {
+    font-family: var(--serif);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    transition: color 0.15s;
+  }
+
+  a.project-card:hover .card-title { color: var(--gold); }
+
+  .card-subtitle {
+    font-size: 0.82rem;
+    font-weight: 300;
+    color: var(--text-2);
+    font-style: italic;
+  }
+
+  .card-desc {
+    font-size: 0.85rem;
+    font-weight: 300;
+    color: var(--text-2);
+    line-height: 1.75;
+    max-width: 520px;
+    margin-top: 0.2rem;
+  }
+
+  .card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1rem;
+    padding-top: 0.3rem;
+    min-width: 90px;
+  }
+
+  .rec {
+    font-family: var(--mono);
+    font-size: 0.57rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .rec-short       { color: var(--red);   border-color: var(--red);   }
+  .rec-long        { color: var(--green); border-color: var(--green); }
+  .rec-exploratory { color: var(--text-3);border-color: var(--border2); }
+
+  .card-arrow {
+    font-size: 0.9rem;
+    color: var(--text-3);
+    transition: color 0.15s, transform 0.15s;
+    font-family: var(--mono);
+  }
+
+  a.project-card:hover .card-arrow {
+    color: var(--gold);
+    transform: translateX(4px);
+  }
+
+  .card-updated {
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    color: var(--text-3);
+  }
+
+  /* skeleton */
+  .skeleton { padding: 2rem 0; border-bottom: 1px solid var(--border); }
+  .sk { height: 10px; background: var(--surface2); margin-bottom: 0.7rem; animation: sk 1.6s ease-in-out infinite; }
+  @keyframes sk { 0%,100%{opacity:0.3} 50%{opacity:0.7} }
+
+  .error-note {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-3);
+    padding: 2rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .footer-left {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--text-3);
+    letter-spacing: 0.05em;
+  }
+
+  .footer-right {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--text-3);
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); }
+
+  @media (max-width: 600px) {
+    nav { padding: 0.9rem 1.4rem; }
+    .page { padding: 2.5rem 1.4rem 5rem; }
+    .project-card { grid-template-columns: 1fr; }
+    .card-right { flex-direction: row; align-items: center; }
+    a.project-card::before { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-rule"></div>
+
+<nav>
+  <span class="nav-brand">pscotcarl / portfolio</span>
+  <span class="nav-date" id="nav-date"></span>
+</nav>
+
+<div class="page">
+
+  <header>
+    <div class="header-rule"></div>
+    <h1>Research<br><span class="name-italic">Portfolio</span></h1>
+    <p class="header-sub">Applied Economics &nbsp;·&nbsp; Data Analytics &nbsp;·&nbsp; Macro Research</p>
+    <p class="bio">
+      Master's student in applied economics with a background in data analytics.
+      These dashboards combine <strong>macro fundamentals, live market data, and
+      interactive visualization</strong> — built to function as genuine analytical
+      tools, not static slides.
+    </p>
+  </header>
+
+  <div class="section-header">
+    <span class="section-title">Dashboards</span>
+    <span class="section-count" id="project-count"></span>
+  </div>
+
+  <div class="projects" id="projects">
+    <div class="skeleton">
+      <div class="sk" style="width:12%"></div>
+      <div class="sk" style="width:45%;height:18px;margin-bottom:0.9rem"></div>
+      <div class="sk" style="width:35%"></div>
+      <div class="sk" style="width:82%;margin-top:0.5rem"></div>
+    </div>
+    <div class="skeleton">
+      <div class="sk" style="width:12%"></div>
+      <div class="sk" style="width:50%;height:18px;margin-bottom:0.9rem"></div>
+      <div class="sk" style="width:30%"></div>
+      <div class="sk" style="width:75%;margin-top:0.5rem"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span class="footer-left">pscotcarl.github.io/portfolio</span>
+    <span class="footer-right" id="footer-date"></span>
+  </footer>
+
+</div>
+
+<script>
+  const GITHUB_USER = 'pscotcarl';
+  const GITHUB_REPO = 'portfolio';
+  const SKIP = new Set(['.github', 'assets', 'public', '.git']);
+
+  const TAG_CLASS = {
+    FX: 'tag-fx', Macro: 'tag-macro', Rates: 'tag-rates',
+    EU: 'tag-eu', Data: 'tag-data', Equity: 'tag-equity', Labor: 'tag-data'
+  };
+
+  const REC_CLASS = {
+    SHORT: 'rec-short', LONG: 'rec-long',
+    EXPLORATORY: 'rec-exploratory', NEUTRAL: 'rec-exploratory'
+  };
+
+  async function getFolders() {
+    const r = await fetch(
+      `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents`,
+      { headers: { Accept: 'application/vnd.github.v3+json' } }
+    );
+    if (!r.ok) throw new Error('GitHub API error');
+    const items = await r.json();
+    return items.filter(i => i.type === 'dir' && !SKIP.has(i.name)).map(i => i.name);
+  }
+
+  async function getMeta(folder) {
+    try {
+      const r = await fetch(
+        `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${folder}/project.json`
+      );
+      return r.ok ? r.json() : null;
+    } catch { return null; }
+  }
+
+  function buildCard(folder, meta) {
+    const recKey = (meta.recommendation || '').toUpperCase();
+    const recCls = REC_CLASS[recKey] || 'rec-exploratory';
+    const tags = (meta.tags || []).map(t =>
+      `<span class="tag ${TAG_CLASS[t] || 'tag-data'}">${t}</span>`
+    ).join('');
+
+    const el = document.createElement('a');
+    el.className = 'project-card';
+    el.href = `./${folder}/`;
+    el.innerHTML = `
+      <div class="card-left">
+        <div class="card-tags">${tags}</div>
+        <div class="card-title">${meta.title || folder}</div>
+        ${meta.subtitle ? `<div class="card-subtitle">${meta.subtitle}</div>` : ''}
+        ${meta.description ? `<div class="card-desc">${meta.description}</div>` : ''}
+      </div>
+      <div class="card-right">
+        ${meta.rec_label ? `<span class="rec ${recCls}">${meta.rec_label}</span>` : ''}
+        <span class="card-updated">${meta.updated || ''}</span>
+        <span class="card-arrow">&#8594;</span>
+      </div>`;
+    return el;
+  }
+
+  function buildFallback(folder) {
+    const el = document.createElement('a');
+    el.className = 'project-card';
+    el.href = `./${folder}/`;
+    el.innerHTML = `
+      <div class="card-left">
+        <div class="card-title" style="text-transform:capitalize;font-size:1.2rem">${folder}</div>
+        <div class="card-subtitle">No project.json found in this folder.</div>
+      </div>
+      <div class="card-right"><span class="card-arrow">&#8594;</span></div>`;
+    return el;
+  }
+
+  async function init() {
+    const container = document.getElementById('projects');
+    try {
+      const folders = await getFolders();
+      if (!folders.length) {
+        container.innerHTML = '<div class="error-note">No project folders found.</div>';
+        return;
+      }
+      const metas = await Promise.all(folders.map(getMeta));
+      const projects = folders
+        .map((f, i) => ({ folder: f, meta: metas[i] }))
+        .sort((a, b) => (a.meta?.order ?? 999) - (b.meta?.order ?? 999));
+
+      container.innerHTML = '';
+      projects.forEach(({ folder, meta }) => {
+        container.appendChild(meta ? buildCard(folder, meta) : buildFallback(folder));
+      });
+
+      const count = projects.length;
+      document.getElementById('project-count').textContent = `${count} project${count !== 1 ? 's' : ''}`;
+    } catch (e) {
+      console.error(e);
+      container.innerHTML = `<div class="error-note">Could not load from GitHub API.</div>`;
+    }
+  }
+
+  const now = new Date();
+  const fmt = { month: 'long', day: 'numeric', year: 'numeric' };
+  const dateStr = now.toLocaleDateString('en-US', fmt);
+  document.getElementById('nav-date').textContent = dateStr;
+  document.getElementById('footer-date').textContent = dateStr;
+
+  init();
+</script>
+</body>
+</html>
